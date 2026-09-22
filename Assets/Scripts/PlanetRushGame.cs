@@ -54,6 +54,10 @@ public class PlanetRushGame : MonoBehaviour
     int resources;
     int planet = 1;
     int weaponIndex;
+    int miningUpgrade;
+    int speedUpgrade;
+    int engineUpgrade;
+    readonly int[] weaponCosts = { 0, 100, 250, 500 };
     bool overlayOpen;
 
     Vector2 velocity = new(0.8f, -2.8f);
@@ -302,6 +306,51 @@ public class PlanetRushGame : MonoBehaviour
         MakeText(close.transform, "CLOSE", 25, TextAnchor.MiddleCenter, new Vector2(300, 76), Vector2.zero);
     }
 
+    void MakeMenuButton(Transform parent, string label, float y, bool interactable, UnityEngine.Events.UnityAction action)
+    {
+        var go = new GameObject("MenuButton");
+        go.transform.SetParent(parent, false);
+        var img = go.AddComponent<Image>();
+        img.color = interactable ? new Color(0.04f, 0.14f, 0.19f, 1f) : new Color(0.025f, 0.045f, 0.065f, 1f);
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = new Vector2(690, 72);
+        rt.anchoredPosition = new Vector2(0, y);
+        var button = go.AddComponent<Button>();
+        button.interactable = interactable;
+        button.onClick.AddListener(action);
+        var txt = MakeText(go.transform, label, 23, TextAnchor.MiddleCenter, new Vector2(680, 70), Vector2.zero);
+        txt.color = interactable ? new Color(0.7f, 0.94f, 1f) : new Color(0.45f, 0.55f, 0.6f);
+    }
+
+    void BuyWeapon(int index)
+    {
+        if (index <= weaponIndex) { weaponIndex = index; return; }
+        int cost = weaponCosts[index];
+        if (resources < cost) return;
+        resources -= cost;
+        weaponIndex = index;
+        CloseOverlay();
+    }
+
+    void BuyUpgrade(int type)
+    {
+        int cost = type == 0 ? 75 : 100;
+        if (resources < cost) return;
+        resources -= cost;
+        if (type == 0) miningUpgrade++;
+        else if (type == 1) speedUpgrade++;
+        else engineUpgrade++;
+        CloseOverlay();
+    }
+
+    void CloseOverlay()
+    {
+        if (panelOverlay != null) Destroy(panelOverlay);
+        panelOverlay = null;
+        overlayOpen = false;
+    }
+
     void UpdateTarget()
     {
         int currentY = Mathf.Clamp(Mathf.RoundToInt((2.5f - ship.position.y) / Cell), 0, Height - 1);
@@ -329,7 +378,7 @@ public class PlanetRushGame : MonoBehaviour
         float horizontal = Mathf.Clamp(delta.x * 3.5f, -3.5f, 3.5f);
 
         velocity.x = Mathf.Lerp(velocity.x, horizontal, Time.deltaTime * 4.5f);
-        velocity.y = Mathf.Lerp(velocity.y, -3.15f, Time.deltaTime * 2.5f);
+        velocity.y = Mathf.Lerp(velocity.y, -(3.15f + engineUpgrade * 0.18f), Time.deltaTime * 2.5f);
         ship.position += (Vector3)(velocity * Time.deltaTime);
 
         float left = -Width * Cell * 0.5f + Cell * 0.52f;
@@ -358,7 +407,7 @@ public class PlanetRushGame : MonoBehaviour
         miningTimer -= Time.deltaTime;
         bounceCooldown -= Time.deltaTime;
         if (miningTimer > 0f) return;
-        miningTimer = 0.15f;
+        miningTimer = Mathf.Max(0.07f, 0.15f - speedUpgrade * 0.012f);
 
         Block best = null;
         float distance = 999f;
@@ -388,7 +437,7 @@ public class PlanetRushGame : MonoBehaviour
 
         if (reward)
         {
-            int value = b.type == BlockType.Gold ? 7 : b.type == BlockType.Energy ? 3 : 1;
+            int value = (b.type == BlockType.Gold ? 7 : b.type == BlockType.Energy ? 3 : 1) + miningUpgrade;
             if (b.y % 7 == 0) value += 2;
             resources += value;
         }
