@@ -6,7 +6,7 @@ public class PlanetRushGame : MonoBehaviour
 {
     const int Width = 13;
     const int Height = 180;
-    const float Cell = 0.62f;
+    const float Cell = 0.66f;
     const float BlockHP = 4f;
 
     class Block
@@ -82,7 +82,7 @@ public class PlanetRushGame : MonoBehaviour
             go.tag = "MainCamera";
         }
         cam.orthographic = true;
-        cam.orthographicSize = 5.2f;
+        cam.orthographicSize = 5.65f;
         cam.transform.position = new Vector3(0, 2.5f, -20);
         cam.backgroundColor = Color.black;
         cam.clearFlags = CameraClearFlags.SolidColor;
@@ -91,10 +91,10 @@ public class PlanetRushGame : MonoBehaviour
     void BuildPlanet()
     {
         total = Width * Height;
-        Color normalColor = new Color(0.08f, 0.78f, 0.95f);
-        Color goldColor = new Color(1f, 0.72f, 0.12f);
-        Color energyColor = new Color(0.45f, 1f, 0.82f);
-        Color explosiveColor = new Color(1f, 0.25f, 0.32f);
+        Color normalColor = new Color(0.16f, 0.48f, 0.72f);
+        Color goldColor = new Color(1f, 0.68f, 0.10f);
+        Color energyColor = new Color(0.25f, 0.95f, 0.85f);
+        Color explosiveColor = new Color(1f, 0.24f, 0.28f);
 
         Sprite baseSprite = MakeSquareSprite();
         for (int y = 0; y < Height; y++)
@@ -118,6 +118,7 @@ public class PlanetRushGame : MonoBehaviour
                 else if (type == BlockType.Energy) c = energyColor;
                 else if (type == BlockType.Explosive) c = explosiveColor;
                 sr.color = c;
+                if (type == BlockType.Normal) sr.transform.localScale = Vector3.one * (Cell * 0.97f);
                 sr.sortingOrder = type == BlockType.Normal ? 0 : 1;
 
                 var b = new Block { go=go, sr=sr, hp=BlockHP, x=x, y=y, type=type };
@@ -135,6 +136,7 @@ public class PlanetRushGame : MonoBehaviour
         shipRenderer = go.AddComponent<SpriteRenderer>();
         shipRenderer.sprite = MakeShipSprite();
         shipRenderer.color = Color.white;
+        shipRenderer.transform.localScale = Vector3.one * 1.18f;
         shipRenderer.sortingOrder = 20;
 
         // Soft neon halo made from simple layered sprites, avoiding external assets.
@@ -144,7 +146,7 @@ public class PlanetRushGame : MonoBehaviour
         glow.transform.localScale = Vector3.one * 1.65f;
         var gr = glow.AddComponent<SpriteRenderer>();
         gr.sprite = MakeSquareSprite();
-        gr.color = new Color(0.05f,0.9f,1f,0.16f);
+        gr.color = new Color(0.05f,0.75f,1f,0.12f);
         gr.sortingOrder = 19;
     }
 
@@ -157,12 +159,12 @@ public class PlanetRushGame : MonoBehaviour
         cgo.GetComponent<CanvasScaler>().referenceResolution = new Vector2(1080,1920);
         cgo.AddComponent<GraphicRaycaster>();
 
-        var top = MakePanel("TopBar", new Vector2(0.5f,0.97f), new Vector2(920,190), new Color(0.01f,0.015f,0.035f,0.92f));
-        planetText = MakeText(top.transform, "PLANET 01", 54, TextAnchor.UpperLeft, new Vector2(800,70), new Vector2(-20,-15));
-        progressText = MakeText(top.transform, "MINED 0 / 2340", 44, TextAnchor.MiddleLeft, new Vector2(800,70), new Vector2(-20,-82));
-        resourceText = MakeText(top.transform, "◆ 0", 44, TextAnchor.MiddleRight, new Vector2(220,70), new Vector2(-20,-82));
+        var top = MakePanel("TopBar", new Vector2(0.5f,0.965f), new Vector2(940,220), new Color(0.015f,0.02f,0.045f,0.94f));
+        planetText = MakeText(top.transform, "PLANET 01", 52, TextAnchor.UpperLeft, new Vector2(800,70), new Vector2(-20,-12));
+        progressText = MakeText(top.transform, "MINED 0 / 2340", 38, TextAnchor.MiddleLeft, new Vector2(800,70), new Vector2(-20,-88));
+        resourceText = MakeText(top.transform, "◆ 0", 40, TextAnchor.MiddleRight, new Vector2(220,70), new Vector2(-20,-88));
 
-        var hint = MakeText(canvas.transform, "AUTONOMOUS MINER", 28, TextAnchor.MiddleCenter, new Vector2(600,55), new Vector2(0,-875));
+        var hint = MakeText(canvas.transform, "AUTO MINER  •  PLANET CORE", 24, TextAnchor.MiddleCenter, new Vector2(700,55), new Vector2(0,-900));
         hint.color = new Color(0.45f,0.8f,1f,0.65f);
     }
 
@@ -374,19 +376,19 @@ public class PlanetRushGame : MonoBehaviour
 
     Sprite MakeShipSprite()
     {
-        var tex = new Texture2D(32,48,TextureFormat.RGBA32,false);
+        var tex = new Texture2D(40,56,TextureFormat.RGBA32,false);
         tex.filterMode = FilterMode.Point;
-        for(int y=0;y<48;y++) for(int x=0;x<32;x++)
+        for(int y=0;y<56;y++) for(int x=0;x<40;x++)
         {
-            float dx=(x-15.5f)/13f, dy=(y-23.5f)/22f;
+            float dx=(x-19.5f)/15f, dy=(y-27.5f)/25f;
             bool body=dx*dx+dy*dy<1f;
-            bool nose=y>33 && Mathf.Abs(x-15.5f)<(47-y)*0.28f;
-            bool wing=(y>12&&y<30&&Mathf.Abs(x-15.5f)>8&&Mathf.Abs(x-15.5f)<15);
+            bool nose=y>39 && Mathf.Abs(x-19.5f)<(55-y)*0.30f;
+            bool wing=(y>15&&y<35&&Mathf.Abs(x-19.5f)>9&&Mathf.Abs(x-19.5f)<18);
             tex.SetPixel(x,y,(body||nose||wing)?new Color(0.8f,0.95f,1f):Color.clear);
         }
-        for(int y=18;y<29;y++) for(int x=10;x<22;x++) tex.SetPixel(x,y,new Color(0.05f,0.85f,1f));
+        for(int y=21;y<34;y++) for(int x=13;x<27;x++) tex.SetPixel(x,y,new Color(0.05f,0.82f,1f));
         tex.Apply();
-        return Sprite.Create(tex,new Rect(0,0,32,48),new Vector2(.5f,.5f),32);
+        return Sprite.Create(tex,new Rect(0,0,40,56),new Vector2(.5f,.5f),32);
     }
 }
 
