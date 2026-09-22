@@ -31,6 +31,9 @@ public class PlanetRushGame : MonoBehaviour
     float miningTimer;
     float particleTimer;
     float shipSpeed = 2.7f;
+    float bounceCooldown;
+    int combo;
+    float comboTimer;
     int mined;
     int total;
     int resources;
@@ -55,6 +58,7 @@ public class PlanetRushGame : MonoBehaviour
         UpdateTarget();
         MoveShip();
         MineTarget();
+        UpdateCombo();
         UpdateCamera();
         UpdateHUD();
 
@@ -221,22 +225,24 @@ public class PlanetRushGame : MonoBehaviour
     {
         Vector3 target = GridPos(targetX, targetY);
         Vector2 delta = target - ship.position;
-        float horizontal = Mathf.Clamp(delta.x * 1.8f, -1.9f, 1.9f);
+        float horizontal = Mathf.Clamp(delta.x * 2.6f, -2.8f, 2.8f);
 
-        velocity.x = Mathf.Lerp(velocity.x, horizontal, Time.deltaTime * 4.5f);
-        velocity.y = Mathf.Lerp(velocity.y, -2.2f, Time.deltaTime * 2.2f);
+        // Deliberately simple deterministic "ricochet" motion: the miner keeps falling,
+        // but special blocks and side contact kick it into a new trajectory.
+        velocity.x = Mathf.Lerp(velocity.x, horizontal, Time.deltaTime * 3.0f);
+        velocity.y = Mathf.Lerp(velocity.y, -2.8f, Time.deltaTime * 2.8f);
 
         ship.position += (Vector3)(velocity * Time.deltaTime);
 
         if (ship.position.x < -Width*Cell*0.5f + Cell*0.55f)
         {
             ship.position = new Vector3(-Width*Cell*0.5f + Cell*0.55f, ship.position.y, ship.position.z);
-            velocity.x = Mathf.Abs(velocity.x);
+            velocity.x = Mathf.Abs(velocity.x) * 1.12f;
         }
         if (ship.position.x > Width*Cell*0.5f - Cell*0.55f)
         {
             ship.position = new Vector3(Width*Cell*0.5f - Cell*0.55f, ship.position.y, ship.position.z);
-            velocity.x = -Mathf.Abs(velocity.x);
+            velocity.x = -Mathf.Abs(velocity.x) * 1.12f;
         }
 
         float angle = Mathf.Clamp(-velocity.x * 7f, -18f, 18f);
@@ -246,6 +252,7 @@ public class PlanetRushGame : MonoBehaviour
     void MineTarget()
     {
         miningTimer -= Time.deltaTime;
+        bounceCooldown -= Time.deltaTime;
         if (miningTimer > 0f) return;
         miningTimer = 0.18f;
 
@@ -267,6 +274,8 @@ public class PlanetRushGame : MonoBehaviour
 
         if (best.hp <= 0f)
         {
+            combo++;
+            comboTimer = 1.2f;
             int reward = best.type == BlockType.Gold ? 6 : (best.type == BlockType.Energy ? 3 : 1);
             if (best.y % 7 == 0) reward += 2;
             resources += reward;
@@ -279,6 +288,12 @@ public class PlanetRushGame : MonoBehaviour
             best.go = null;
 
             if (explosive) TriggerExplosion(best, blastPos, blastColor);
+            if (bounceCooldown <= 0f)
+            {
+                velocity.y = Mathf.Abs(velocity.y) * 0.78f;
+                velocity.x += (best.x - targetX) * 0.22f;
+                bounceCooldown = 0.12f;
+            }
         }
     }
 
@@ -301,6 +316,13 @@ public class PlanetRushGame : MonoBehaviour
         SpawnBurst(pos, color);
     }
 
+    
+    void UpdateCombo()
+    {
+        comboTimer -= Time.deltaTime;
+        if (comboTimer <= 0f) combo = 0;
+    }
+
     void UpdateCamera()
     {
         Vector3 p = cam.transform.position;
@@ -312,7 +334,7 @@ public class PlanetRushGame : MonoBehaviour
     void UpdateHUD()
     {
         progressText.text = "MINED " + mined + " / " + total;
-        resourceText.text = "◆ " + resources;
+        resourceText.text = "◆ " + resources + (combo > 1 ? "   x" + combo : "");
     }
 
     void SpawnBurst(Vector3 pos, Color color)
