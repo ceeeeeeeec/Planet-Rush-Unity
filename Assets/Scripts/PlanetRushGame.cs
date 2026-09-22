@@ -15,7 +15,10 @@ public class PlanetRushGame : MonoBehaviour
         public SpriteRenderer sr;
         public float hp;
         public int x, y;
+        public BlockType type;
     }
+
+    enum BlockType { Normal, Gold, Energy, Explosive }
 
     readonly List<Block> blocks = new();
     Transform ship;
@@ -88,15 +91,10 @@ public class PlanetRushGame : MonoBehaviour
     void BuildPlanet()
     {
         total = Width * Height;
-        var palette = new[]
-        {
-            new Color(0.10f,0.75f,1f),
-            new Color(0.20f,0.95f,0.85f),
-            new Color(0.55f,0.25f,1f),
-            new Color(1f,0.25f,0.72f),
-            new Color(0.95f,0.55f,0.12f),
-            new Color(0.95f,0.9f,0.2f)
-        };
+        Color normalColor = new Color(0.08f, 0.78f, 0.95f);
+        Color goldColor = new Color(1f, 0.72f, 0.12f);
+        Color energyColor = new Color(0.45f, 1f, 0.82f);
+        Color explosiveColor = new Color(1f, 0.25f, 0.32f);
 
         Sprite baseSprite = MakeSquareSprite();
         for (int y = 0; y < Height; y++)
@@ -109,13 +107,20 @@ public class PlanetRushGame : MonoBehaviour
                 var sr = go.AddComponent<SpriteRenderer>();
                 sr.sprite = baseSprite;
 
-                float r = Mathf.PerlinNoise(x * 0.37f, y * 0.17f);
-                Color c = palette[Mathf.Clamp(Mathf.FloorToInt(r * palette.Length), 0, palette.Length - 1)];
-                c *= 0.72f + 0.28f * Mathf.PerlinNoise(x * 0.9f, y * 0.31f);
-                sr.color = c;
-                sr.sortingOrder = 0;
+                BlockType type = BlockType.Normal;
+                int roll = Mathf.Abs((x * 92821 + y * 68917 + x * y * 31) % 1000);
+                if (roll < 12) type = BlockType.Explosive;
+                else if (roll < 30) type = BlockType.Gold;
+                else if (roll < 55) type = BlockType.Energy;
 
-                var b = new Block { go=go, sr=sr, hp=BlockHP, x=x, y=y };
+                Color c = normalColor;
+                if (type == BlockType.Gold) c = goldColor;
+                else if (type == BlockType.Energy) c = energyColor;
+                else if (type == BlockType.Explosive) c = explosiveColor;
+                sr.color = c;
+                sr.sortingOrder = type == BlockType.Normal ? 0 : 1;
+
+                var b = new Block { go=go, sr=sr, hp=BlockHP, x=x, y=y, type=type };
                 blocks.Add(b);
             }
         }
@@ -260,11 +265,38 @@ public class PlanetRushGame : MonoBehaviour
 
         if (best.hp <= 0f)
         {
-            resources += 1 + (best.y % 7 == 0 ? 2 : 0);
+            int reward = best.type == BlockType.Gold ? 6 : (best.type == BlockType.Energy ? 3 : 1);
+            if (best.y % 7 == 0) reward += 2;
+            resources += reward;
             mined++;
+
+            bool explosive = best.type == BlockType.Explosive;
+            Vector3 blastPos = best.go.transform.position;
+            Color blastColor = best.sr.color;
             Destroy(best.go);
             best.go = null;
+
+            if (explosive) TriggerExplosion(best, blastPos, blastColor);
         }
+    }
+
+
+    void TriggerExplosion(Block center, Vector3 pos, Color color)
+    {
+        for (int i = 0; i < blocks.Count; i++)
+        {
+            var b = blocks[i];
+            if (b.go == null || b == center) continue;
+            if (Mathf.Abs(b.x - center.x) <= 1 && Mathf.Abs(b.y - center.y) <= 1)
+            {
+                SpawnBurst(b.go.transform.position, color);
+                resources += b.type == BlockType.Gold ? 6 : (b.type == BlockType.Energy ? 3 : 1);
+                mined++;
+                Destroy(b.go);
+                b.go = null;
+            }
+        }
+        SpawnBurst(pos, color);
     }
 
     void UpdateCamera()
